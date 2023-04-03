@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Upload and Play Videos</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8 col-md-offset-2">
+                <h1 class="text-center">Upload and Play Videos</h1>
+                <form action="upload.php" method="post" enctype="multipart/form-data" id="upload-form">
+                    <div class="form-group">
+                        <label for="fileToUpload">Select video to upload:</label>
+                        <input type="file" name="fileToUpload" id="fileToUpload" accept=".mp4">
+                    </div>
+                    <div class="form-group">
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped active" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%">
+                                <span class="sr-only">0% Complete</span>
+                            </div>
+                        </div>
+                        <div class="text-center" id="upload-message"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">Upload</button>
+                </form>
+
+                <div id="upload-result"></div>
+                <div id="video-container">
+                    <hr>
+                    <h2 class="text-center">Video List</h2>
+                    <div class="list-group" id="video-list">
+                        <?php
+                        $dir = 'uploads';
+                        $files = scandir($dir);
+                        foreach($files as $file) {
+                            if($file !== '.' && $file !== '..' && $file !== '.htaccess') {
+                                $file_url = $dir . '/' . $file;
+                                echo '<a href="#" class="list-group-item" data-src="' . $file_url . '">' . $file . '</a>';
+                            }
+                        }
+                        ?>
+                    </div>
+                    <div id="video-pagination"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <video id="video-player" controls>
+        <source src="">
+    </video>
+    <script>
+
+var videosPerPage = 5; // 每页展示 5 个视频
+var videoList = $('#video-list'); // 需要分页的元素
+var videoListItems = videoList.children('.list-group-item'); // 每个视频元素
+var numPages = Math.ceil(videoListItems.length / videosPerPage); // 计算出页数
+
+var paginationHtml = '';
+for (var i = 1; i <= numPages; i++) {
+  paginationHtml += '<button class="btn btn-default video-page" data-page="' + i + '">' + i + '</button>';
+}
+$('#video-pagination').html(paginationHtml); // 将分页按钮插入到页面中
+
+function showVideos(page) {
+  var startIndex = (page - 1) * videosPerPage; // 计算出当前页的起始索引
+  var endIndex = startIndex + videosPerPage - 1; // 计算出当前页的结束索引
+  videoListItems.hide(); // 隐藏所有视频
+  videoListItems.slice(startIndex, endIndex + 1).show(); // 显示当前页的视频
+}
+$(document).ready(function() {
+  showVideos(1); // 初始化显示第一页的视频
+  $('#video-pagination button').click(function() {
+    var page = $(this).data('page');
+    showVideos(page); // 点击分页按钮时显示对应的视频
+  });
+});
+
+
+        $(document).ready(function() {
+            // Handle form submit event
+            $('#upload-form').on('submit', function(event) {
+                event.preventDefault(); // Prevent default form submission
+
+                // Create a FormData object
+                var formData = new FormData(this);
+
+                // Submit the form data via AJAX
+                $.ajax({
+                    type: 'POST',
+                url: $(this).attr('action'),
+                data: formData,
+                contentType: false,
+                processData: false,
+                xhr: function() {
+                    var xhr = $.ajaxSettings.xhr();
+                    xhr.upload.addEventListener("progress", function(evt) {
+
+                        if (evt.lengthComputable) {
+                            var percentComplete = evt.loaded / evt.total;
+                            percentComplete = parseInt(percentComplete * 100);
+                            $('.progress-bar').css('width', percentComplete + '%').attr('aria-valuenow', percentComplete);
+                            $('.sr-only').text(percentComplete + '% Complete');
+                            if (percentComplete === 100) {
+                                $('#upload-message').text('影片上傳成功！').removeClass('text-danger').addClass('text-success');
+                            } else {
+                                $('#upload-message').text('上傳中... ' + percentComplete + '%').removeClass('text-success').addClass('text-danger');
+                            }
+                        }
+
+                    }, false);
+                    return xhr;
+                },
+                success: function(data) {
+                    $('#upload-result').html(data);
+                    $('#video-list').load(location.href + ' #video-list');
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    $('#upload-result').html('<p class="text-danger">Error uploading video file.</p>');
+                }
+            });
+        });
+
+        // Play video on video list item click
+        $('#video-list').on('click', 'a', function(event) {
+            event.preventDefault();
+            var src = $(this).data('src');
+            var videoPlayer = $('#video-player');
+            videoPlayer.find('source').attr('src', src);
+            videoPlayer[0].load();
+            videoPlayer[0].play();
+        });
+
+    });
+</script>
+</body>
+</html>
